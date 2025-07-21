@@ -4,7 +4,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import mean_squared_error
+from sklearn.linear_model import Ridge
 import re
+
+import pickle
 
 # Load the coffee shop data
 coffee_shops = pd.read_csv('coffeeshop_data_cleaned.csv')
@@ -134,6 +137,15 @@ print("Review features extracted")
 print("Sample user preferences:")
 print(review_features_df.head())
 
+# Helper to get average shop profile excluding a given review idx
+def get_shop_profile(shop_id, exclude_idx=None):
+    shop_reviews = review_features_df[review_features_df['shopId'] == shop_id]
+    if exclude_idx is not None:
+        shop_reviews = shop_reviews.drop(exclude_idx)
+    aspects = shop_reviews[feature_names].mean().values if not shop_reviews.empty else np.zeros(len(feature_names))
+    tfidf_vec = review_tfidf[shop_reviews.index].mean(axis=0).A1 if not shop_reviews.empty else np.zeros(review_tfidf.shape[1])
+    return aspects, tfidf_vec
+
 # Create user profiles from their review preferences
 user_profiles = {}
 for user_id in review_features_df['userId'].unique():
@@ -177,16 +189,26 @@ print(f"TF-IDF features: {review_tfidf.shape}")
 feature_names = ['coffee_quality', 'food_quality', 'service_quality', 
                 'atmosphere', 'wifi_work', 'space_seating', 'pricing', 'location']
 
-combined_features = []
+
+# Build personalized feature matrix (user review + shop profile)
+X_features = []
+y_ratings = []
+
 for idx, row in review_features_df.iterrows():
-    sentiment_features = [row[name] for name in feature_names]
-    tfidf_features = review_tfidf[idx].toarray()[0]
-    combined_features.append(sentiment_features + list(tfidf_features))
+    # User features
+    user_aspects = np.array([row[fn] for fn in feature_names])
+    user_tfidf = review_tfidf[idx].toarray()[0]
+    # Shop profile
+    shop_aspects, shop_tfidf = get_shop_profile(row['shopId'], exclude_idx=idx)
+    # Combine
+    features = np.concatenate([user_aspects, user_tfidf, shop_aspects, shop_tfidf])
+    X_features.append(features)
+    y_ratings.append(row['rating'])
 
-X_features = np.array(combined_features)
-y_ratings = review_features_df['rating'].values
+X_features = np.array(X_features)
+y_ratings = np.array(y_ratings)
+print("Personalized feature matrix shape:", X_features.shape)
 
-print(f"Combined features shape: {X_features.shape}")
 
 # Split data for training
 X_train, X_test, y_train, y_test = train_test_split(X_features, y_ratings, test_size=0.2, random_state=42)
@@ -194,137 +216,56 @@ X_train, X_test, y_train, y_test = train_test_split(X_features, y_ratings, test_
 # Also split the review data
 review_train, review_test = train_test_split(review_features_df, test_size=0.2, random_state=42)
 
-# Function to predict rating using both user preferences and restaurant profiles
-def predict_rating_nlp(target_user, target_shop):
-    """Predict rating using NLP analysis of user preferences and restaurant qualities"""
-    
-    # Get target user's preferences
-    if target_user not in user_profiles:
-        return 3.0
-    
-    user_pref = user_profiles[target_user]
-    
-    # Get restaurant's profile from reviews
-    if target_shop in restaurant_profiles:
-        shop_profile = restaurant_profiles[target_shop]
-        
-        # Calculate match between user preferences and restaurant qualities
-        match_score = 0
-        feature_count = 0
-        
-        for feature in feature_names:
-            user_likes = user_pref[feature]
-            shop_quality = shop_profile[feature]
-            
-            if abs(user_likes) > 0.1 and abs(shop_quality) > 0.1:
-                # If user likes something and restaurant is good at it, positive match
-                # If user dislikes something and restaurant is poor at it, still ok
-                match_score += user_likes * shop_quality
-                feature_count += 1
-        
-        if feature_count > 0:
-            avg_match = match_score / feature_count
-            # Convert match score to rating (3.0 base + adjustment)
-            predicted = 3.0 + avg_match
-            return max(1.0, min(5.0, predicted))
-    
-    # Fallback: find similar users
-    similarities = []
-    candidate_ratings = []
-    
-    for other_user in user_profiles:
-        if other_user != target_user:
-            other_pref = user_profiles[other_user]
-            
-            # Calculate similarity between user preferences
-            pref_sim = 0
-            for feature in feature_names:
-                if abs(user_pref[feature]) > 0.1 and abs(other_pref[feature]) > 0.1:
-                    if user_pref[feature] * other_pref[feature] > 0:  # Same sign = similar preference
-                        pref_sim += 1
-            
-            # If similar user has rated target shop
-            other_ratings = review_train[review_train['userId'] == other_user]
-            shop_rating = other_ratings[other_ratings['shopId'] == target_shop]
-            
-            if not shop_rating.empty and pref_sim > 0:
-                similarities.append(pref_sim)
-                candidate_ratings.append(shop_rating['rating'].iloc[0])
-    
-    if len(candidate_ratings) > 0:
-        # Weighted average based on similarity
-        weights = np.array(similarities)
-        predicted = np.average(candidate_ratings, weights=weights)
-        return max(1.0, min(5.0, predicted))
-    
-    return 3.0
+#ML model
+ridge = Ridge()
+ridge.fit(X_train, y_train)
 
-# Test prediction function
-predictions = []
-actuals = []
 
-print("Testing NLP-based predictions...")
-for idx, row in review_test.head(20).iterrows():  
-    pred = predict_rating_nlp(row['userId'], row['shopId'])
-    predictions.append(pred)
-    actuals.append(row['rating'])
+ridge = Ridge()
+ridge.fit(X_train, y_train)
+ridge_preds = ridge.predict(X_test)
+ridge_rmse = np.sqrt(mean_squared_error(y_test, ridge_preds))
+print(f"Ridge Regression RMSE: {ridge_rmse:.3f}")
 
-rmse = np.sqrt(mean_squared_error(actuals, predictions))
-print(f'RMSE of NLP predictions: {rmse:.3f}')
+shop_profiles = {}
+for shop_id in coffee_shops['id']:
+    aspects, tfidf_vec = get_shop_profile(shop_id)
+    shop_profiles[shop_id] = (aspects, tfidf_vec)
 
-# Generate recommendations based on NLP analysis
-def recommend_shops_nlp(user_id):
-    """Recommend shops based on NLP analysis of user preferences"""
-    
-    if user_id not in user_profiles:
-        return "User not found"
-    
-    user_pref = user_profiles[user_id]
+with open('shop_profiles.pkl', 'wb') as f:
+    pickle.dump(shop_profiles, f)
+
+
+
+def recommend_shops_ridge(user_id, top_n=5):
+    # Get user’s average aspects from their previous reviews
     user_reviews = reviews[reviews['userId'] == user_id]
+    user_aspects = user_profiles[user_id]  # This is a dict
+    user_aspects_vec = np.array([user_aspects[f] for f in feature_names])
+    user_tfidf = review_tfidf[user_reviews.index].mean(axis=0).A1 if not user_reviews.empty else np.zeros(review_tfidf.shape[1])
     visited_shops = set(user_reviews['shopId'])
-    
-    recommendations = []
-    
-    # For each unvisited shop, predict rating
-    all_shops = coffee_shops['id'].unique()
-    for shop_id in all_shops:
+    recs = []
+    for shop_id in coffee_shops['id']:
         if shop_id not in visited_shops:
-            predicted_rating = predict_rating_nlp(user_id, shop_id)
+            # Shop features
+            shop_aspects, shop_tfidf = get_shop_profile(shop_id)
+            # Combine all
+            feature_vector = np.concatenate([user_aspects_vec, user_tfidf, shop_aspects, shop_tfidf])
+            predicted_rating = ridge.predict([feature_vector])[0]
             shop_name = coffee_shops[coffee_shops['id'] == shop_id]['name'].iloc[0]
-            
-            recommendations.append({
-                'shop_id': shop_id,
-                'shop_name': shop_name,
-                'predicted_rating': predicted_rating
-            })
-    
-    # Sort by predicted rating
-    recommendations.sort(key=lambda x: x['predicted_rating'], reverse=True)
-    return recommendations[:5]
+            recs.append({'shop_id': shop_id, 'shop_name': shop_name, 'predicted_rating': predicted_rating})
+    recs = sorted(recs, key=lambda x: x['predicted_rating'], reverse=True)
+    return recs[:top_n]
 
-# Test recommendations
+
 test_user = reviews['userId'].iloc[0]
-user_review = reviews[reviews['userId'] == test_user].iloc[0]
+recs = recommend_shops_ridge(test_user, top_n=5)
+print(f"Top recommendations for {test_user}:")
+for i, rec in enumerate(recs, 1):
+    print(f"{i}. {rec['shop_name']} (predicted rating: {rec['predicted_rating']:.2f})")
 
-print(f"\nTest user: {test_user}")
-print(f"Their review: '{user_review['review_text'][:100]}...'")
-print(f"Their rating: {user_review['rating']}")
-print(f"Their preferences: {user_profiles[test_user]}")
+with open('tfidf_vectorizer.pkl', 'wb') as f:
+    pickle.dump(tfidf, f)
 
-recs = recommend_shops_nlp(test_user)
-print("\nNLP-based recommendations:")
-if isinstance(recs, list):
-    for i, rec in enumerate(recs, 1):
-        print(f"{i}. {rec['shop_name']} (predicted: {rec['predicted_rating']:.2f})")
-
-# Show how NLP features work
-print(f"\nNLP Feature Analysis:")
-sample_review = reviews.iloc[0]
-sample_features = analyze_review_sentiment(sample_review['review_text'], sample_review['rating'])
-print(f"Review: '{sample_review['review_text'][:80]}...'")
-print(f"Rating: {sample_review['rating']}")
-print("Extracted preferences:")
-for feature, value in sample_features.items():
-    if value != 0:
-        sentiment = "likes" if value > 0 else "dislikes"
-        print(f"  {sentiment} {feature}")
+with open('ridge_model_personalized.pkl', 'wb') as f:
+    pickle.dump(ridge, f)
