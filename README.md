@@ -62,7 +62,23 @@ This project recommends coffee shops in Washington, DC by analyzing user Yelp re
 
 ## File Structure
 
-<pre> ## File Structure ``` . ├── app.py # Streamlit web application ├── data_prep.py # Data cleaning and feature extraction steps ├── ml.py # Classical ML model (Ridge regression) ├── naive.py # Baseline recommender (Yelp average rating) ├── neuralnet.py # Feedforward neural network recommender (PyTorch) ├── LICENSE ├── README.md ├── requirements.txt ├── data/ │ ├── coffeeshop_data_cleaned.csv │ └── coffeeshop_data.xlsx ├── pickles/ │ ├── ridge_model_personalized.pkl │ ├── ridge_model.pkl │ ├── shop_profiles.pkl │ └── tfidf_vectorizer.pkl ``` </pre>
+.
+├── app.py                  # Streamlit web application
+├── data_prep.py            # Data cleaning and feature extraction steps
+├── ml.py                   # Classical ML model (Ridge regression)
+├── naive.py                # Baseline recommender (Yelp average rating)
+├── neuralnet.py            # Feedforward neural network recommender (PyTorch)
+├── LICENSE
+├── README.md
+├── requirements.txt
+├── data/
+│   ├── coffeeshop_data_cleaned.csv
+│   └── coffeeshop_data.xlsx
+├── pickles/
+│   ├── ridge_model_personalized.pkl
+│   ├── ridge_model.pkl
+│   ├── shop_profiles.pkl
+│   └── tfidf_vectorizer.pkl
 
 ## File Descriptions
 
