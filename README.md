@@ -97,8 +97,8 @@ This project recommends coffee shops in Washington, DC by analyzing user Yelp re
 ## How to Run
 
 1. **Clone this repository:**
-   git clone https://github.com/yourusername/coffee-shop-recommender.git
-   cd coffee-shop-recommender
+    git clone https://github.com/evanmoh/540_recommender.git
+    cd 540_recommender
 
 2. **Install dependencies:**    
     pip install -r requirements.txt
