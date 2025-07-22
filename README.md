@@ -62,6 +62,7 @@ This project recommends coffee shops in Washington, DC by analyzing user Yelp re
 
 ## File Structure
 
+```
 .
 ├── app.py                  # Streamlit web application
 ├── data_prep.py            # Data cleaning and feature extraction steps
@@ -79,6 +80,7 @@ This project recommends coffee shops in Washington, DC by analyzing user Yelp re
 │   ├── ridge_model.pkl
 │   ├── shop_profiles.pkl
 │   └── tfidf_vectorizer.pkl
+```
 
 ## File Descriptions
 
