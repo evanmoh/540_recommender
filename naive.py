@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.metrics import mean_squared_error
 
 # Load the coffee shop data
-coffee_shops = pd.read_csv('coffeeshop_data_cleaned.csv')
+coffee_shops = pd.read_csv('data/coffeeshop_data_cleaned.csv')
 
 # Extract ratings to test against
 ratings_data = []

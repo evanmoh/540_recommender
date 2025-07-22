@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 # Load the data
-coffee_shops = pd.read_csv('coffeeshop_data_cleaned.csv')
+coffee_shops = pd.read_csv('data/coffeeshop_data_cleaned.csv')
 print(f"Loaded {len(coffee_shops)} coffee shops")
 
 # Extract reviews and ratings

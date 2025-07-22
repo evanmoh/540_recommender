@@ -10,7 +10,7 @@ import re
 import pickle
 
 # Load the coffee shop data
-coffee_shops = pd.read_csv('coffeeshop_data_cleaned.csv')
+coffee_shops = pd.read_csv('data/coffeeshop_data_cleaned.csv')
 
 print("Loaded", len(coffee_shops), "coffee shops")
 

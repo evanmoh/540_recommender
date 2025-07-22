@@ -34,7 +34,7 @@ def load_and_clean_data(filepath):
     return df
 
 if __name__ == "__main__":
-    filepath = "coffeeshop_data.xlsx"
+    filepath = "data/coffeeshop_data.xlsx"
     cleaned_df = load_and_clean_data(filepath)
     print(cleaned_df.head())
-    cleaned_df.to_csv("coffeeshop_data_cleaned.csv", index=False)
+    cleaned_df.to_csv("data/coffeeshop_data_cleaned.csv", index=False)

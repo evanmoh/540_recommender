@@ -10,14 +10,14 @@ st.caption("AIPI 540 Final Project – Evan Moh")
 # Load Models and data 
 @st.cache_resource
 def load_all():
-    with open('tfidf_vectorizer.pkl', 'rb') as f:
+    with open('pickles/tfidf_vectorizer.pkl', 'rb') as f:
         tfidf = pickle.load(f)
-    with open('ridge_model_personalized.pkl', 'rb') as f:
+    with open('pickles/ridge_model_personalized.pkl', 'rb') as f:
         ridge = pickle.load(f)
 
-    with open('shop_profiles.pkl', 'rb') as f:
+    with open('pickles/shop_profiles.pkl', 'rb') as f:
         shop_profiles = pickle.load(f)
-    data = pd.read_csv('coffeeshop_data_cleaned.csv')
+    data = pd.read_csv('data/coffeeshop_data_cleaned.csv')
     return tfidf, ridge, shop_profiles, data
 
 tfidf, ridge, shop_profiles, coffee_shops = load_all()
